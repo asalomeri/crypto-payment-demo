@@ -5,3 +5,5 @@
 *.swp
 .DS_Store
 /storage/payments.json
+/storage/orders.json
+/.phpunit.cache/

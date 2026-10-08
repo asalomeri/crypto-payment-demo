@@ -5,34 +5,53 @@ declare(strict_types=1);
 require __DIR__ . '/src/bootstrap.php';
 
 use App\NowPaymentsClient;
+use App\OrderStore;
+use App\PaymentValidator;
 
 $client = new NowPaymentsClient(
     env('NOWPAYMENTS_API_KEY'),
     env('NOWPAYMENTS_BASE_URL', 'https://api.nowpayments.io'),
     filter_var(env('NOWPAYMENTS_SANDBOX', 'true'), FILTER_VALIDATE_BOOLEAN)
 );
+$store = new OrderStore(__DIR__ . '/storage');
 
 $error = null;
 $payment = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Input validation / التحقق من المدخلات
-    $amount = filter_var($_POST['amount'] ?? '', FILTER_VALIDATE_FLOAT);
+    $amountRaw = $_POST['amount'] ?? '';
     $fiat = strtolower(trim((string) ($_POST['price_currency'] ?? '')));
     $crypto = strtolower(trim((string) ($_POST['pay_currency'] ?? '')));
 
-    if ($amount === false || $amount <= 0 || $amount > 100000) {
-        $error = 'Invalid amount / مبلغ غير صالح';
-    } elseif (!preg_match('/^[a-z]{3,5}$/', $fiat)) {
-        $error = 'Invalid price currency / عملة السعر غير صالحة';
-    } elseif (!preg_match('/^[a-z0-9]{2,15}$/', $crypto)) {
-        $error = 'Invalid crypto currency / عملة رقمية غير صالحة';
-    } elseif (env('NOWPAYMENTS_API_KEY') === '') {
+    if (env('NOWPAYMENTS_API_KEY') === '') {
         $error = 'API key not configured / مفتاح API غير مضبوط';
     } else {
         try {
-            $payment = $client->createPayment($amount, $fiat, $crypto, bin2hex(random_bytes(8)));
-        } catch (\Throwable $ex) {
+            // Whitelist from the API, falls back to a built-in list / قائمة العملات من الواجهة
+            try {
+                $supported = $client->getCurrencies();
+            } catch (\Throwable) {
+                $supported = [];
+            }
+            $error = PaymentValidator::validate($amountRaw, $fiat, $crypto, $supported);
+            if ($error === null) {
+                $amount = (float) $amountRaw;
+                $orderId = bin2hex(random_bytes(8));
+                $payment = $client->createPayment($amount, $fiat, $crypto, $orderId);
+                // Persist the order so webhooks can be bound to it / حفظ الطلب لربط الـ Webhook
+                $store->saveOrder($orderId, [
+                    'price_amount' => $amount,
+                    'price_currency' => $fiat,
+                    'pay_currency' => $crypto,
+                    'pay_address' => (string) ($payment['pay_address'] ?? ''),
+                    'payment_id' => (string) ($payment['payment_id'] ?? ''),
+                    'created_at' => date('c'),
+                ]);
+            }
+        } catch (\Throwable) {
+            // Never show raw API error bodies / لا نعرض رسائل الواجهة الخام
+            $payment = null;
             $error = 'API error / خطأ في الواجهة';
         }
     }
