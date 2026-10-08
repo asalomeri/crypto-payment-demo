@@ -19,7 +19,7 @@ php -S localhost:8000
 Open http://localhost:8000.
 
 ### Test the webhook locally
-Expose your server with [ngrok](https://ngrok.com): `ngrok http 8000`, then set the IPN callback URL in NOWPayments to `https://<id>.ngrok.io/webhook.php`. Payment states are saved to `storage/payments.json`. Signatures are verified with HMAC-SHA512 and `hash_equals`.
+Expose your server with [ngrok](https://ngrok.com): `ngrok http 8000`, then set the IPN callback URL in NOWPayments to `https://<id>.ngrok.io/webhook.php`. Payment states are saved to `storage/payments.json`. Orders created by `index.php` are tracked in `storage/orders.json`; webhooks for unknown `order_id`/`payment_id` are rejected with 404. Signatures are verified with HMAC-SHA512 and `hash_equals`.
 
 ## العربية
 
@@ -36,6 +36,6 @@ php -S localhost:8000
 ```
 
 ### اختبار الـ Webhook محليًا
-استخدم [ngrok](https://ngrok.com) عبر `ngrok http 8000` ثم ضع الرابط `https://<id>.ngrok.io/webhook.php` كـ IPN callback. تُحفظ الحالات في `storage/payments.json` ويتم التحقق من التوقيع بـ HMAC-SHA512 و`hash_equals`.
+استخدم [ngrok](https://ngrok.com) عبر `ngrok http 8000` ثم ضع الرابط `https://<id>.ngrok.io/webhook.php` كـ IPN callback. تُحفظ الحالات في `storage/payments.json` وتُتبَّع الطلبات المنشأة من `index.php` في `storage/orders.json` ويُرفض (404) أي webhook لطلب غير معروف. ويتم التحقق من التوقيع بـ HMAC-SHA512 و`hash_equals`.
 
 لا تستخدم مفاتيح حقيقية في الكود ولا تقم بدفعات حقيقية في هذا الديمو.

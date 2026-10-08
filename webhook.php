@@ -44,6 +44,12 @@ if ($id === '') {
     exit('Missing payment_id');
 }
 
+// Reject unknown orders / رفض الطلبات غير المعروفة
+if (!is_known_order((string) ($data['order_id'] ?? ''), $id)) {
+    http_response_code(404);
+    exit('Unknown order');
+}
+
 $file = __DIR__ . '/storage/payments.json';
 $fh = fopen($file, 'c+');
 if ($fh === false || !flock($fh, LOCK_EX)) {

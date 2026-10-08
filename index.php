@@ -31,7 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'API key not configured / مفتاح API غير مضبوط';
     } else {
         try {
-            $payment = $client->createPayment($amount, $fiat, $crypto, bin2hex(random_bytes(8)));
+            $orderId = bin2hex(random_bytes(8));
+            $payment = $client->createPayment($amount, $fiat, $crypto, $orderId);
+            record_order($orderId, (string) ($payment['payment_id'] ?? ''));
         } catch (\Throwable $ex) {
             $error = 'API error / خطأ في الواجهة';
         }
